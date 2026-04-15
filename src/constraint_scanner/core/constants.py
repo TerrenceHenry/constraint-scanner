@@ -5,7 +5,7 @@ from uuid import UUID
 
 APP_NAME = "Constraint Scanner v1"
 DEFAULT_VENUE = "polymarket"
-DEFAULT_TRADING_MODE = "paper"
+DEFAULT_TRADING_MODE = "disabled"
 DEFAULT_TIME_IN_FORCE = "GTC"
 MIDPOINT_DIAGNOSTIC_NOTE = "Midpoint is diagnostic only and not executable."
 DECIMAL_ZERO = Decimal("0")

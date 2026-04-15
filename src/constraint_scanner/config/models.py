@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, SecretStr
 
+from constraint_scanner.core.constants import DEFAULT_TIME_IN_FORCE
+from constraint_scanner.core.enums import TradingMode
+
 
 class BaseSection(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -98,8 +101,21 @@ class RiskSettings(BaseSection):
 
 class TradingSettings(BaseSection):
     enabled: bool = False
+    mode: TradingMode = TradingMode.DISABLED
     paper: bool = True
     default_order_size_usd: float = 25.0
+    default_tif: str = DEFAULT_TIME_IN_FORCE
+
+    def resolved_mode(self) -> TradingMode:
+        """Return the effective runtime trading mode with safe defaults."""
+
+        if not self.enabled:
+            return TradingMode.DISABLED
+        if self.mode is not TradingMode.DISABLED:
+            return self.mode
+        if self.paper:
+            return TradingMode.PAPER
+        return TradingMode.DISABLED
 
 
 class Settings(BaseSection):

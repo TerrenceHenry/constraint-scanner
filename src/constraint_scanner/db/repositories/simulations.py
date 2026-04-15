@@ -105,3 +105,14 @@ class SimulationsRepository:
             SimulatedExecution.simulation_run_id == simulation_run_id,
         )
         return self.session.scalar(stmt)
+
+    def get_any_by_run_id(self, simulation_run_id: str) -> SimulatedExecution | None:
+        """Return any simulation row for a run id, regardless of opportunity."""
+
+        stmt = (
+            select(SimulatedExecution)
+            .where(SimulatedExecution.simulation_run_id == simulation_run_id)
+            .order_by(desc(SimulatedExecution.executed_at), desc(SimulatedExecution.id))
+            .limit(1)
+        )
+        return self.session.scalar(stmt)

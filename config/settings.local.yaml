@@ -65,5 +65,7 @@ risk:
 
 trading:
   enabled: false
+  mode: disabled
   paper: true
   default_order_size_usd: 25.0
+  default_tif: GTC

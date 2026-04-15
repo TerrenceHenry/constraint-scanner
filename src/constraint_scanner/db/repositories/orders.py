@@ -26,6 +26,14 @@ class OrdersRepository:
         stmt = select(LiveOrder).where(LiveOrder.client_order_id == client_order_id)
         return self.session.scalar(stmt)
 
+    def list_orders_for_opportunity(self, opportunity_id: int) -> list[LiveOrder]:
+        stmt = (
+            select(LiveOrder)
+            .where(LiveOrder.opportunity_id == opportunity_id)
+            .order_by(LiveOrder.submitted_at.asc(), LiveOrder.id.asc())
+        )
+        return list(self.session.scalars(stmt))
+
     def list_fills_for_order(self, order_id: int) -> list[LiveFill]:
         stmt = select(LiveFill).where(LiveFill.live_order_id == order_id).order_by(LiveFill.filled_at)
         return list(self.session.scalars(stmt))

@@ -46,4 +46,5 @@ class TradingMode(str, Enum):
 
     DISABLED = "disabled"
     PAPER = "paper"
+    SHADOW = "shadow"
     LIVE = "live"
