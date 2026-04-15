@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: constraint-scanner-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${CONSTRAINT_SCANNER_DATABASE_NAME:-constraint_scanner}
+      POSTGRES_USER: ${CONSTRAINT_SCANNER_DATABASE_USER:-constraint_scanner}
+      POSTGRES_PASSWORD: ${CONSTRAINT_SCANNER_DATABASE_PASSWORD:-change-me}
+    ports:
+      - "${CONSTRAINT_SCANNER_DATABASE_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U ${CONSTRAINT_SCANNER_DATABASE_USER:-constraint_scanner} -d ${CONSTRAINT_SCANNER_DATABASE_NAME:-constraint_scanner}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    profiles: ["app"]
+    image: python:3.11-slim
+    working_dir: /app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      CONSTRAINT_SCANNER_SETTINGS_FILE: /app/config/settings.local.yaml
+    command:
+      - /bin/sh
+      - -lc
+      - pip install --no-cache-dir -e .[dev] && uvicorn constraint_scanner.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+
+volumes:
+  postgres-data:
+

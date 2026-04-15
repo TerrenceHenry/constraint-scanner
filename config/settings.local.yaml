@@ -1,0 +1,57 @@
+app:
+  name: Constraint Scanner v1
+  version: 0.1.0
+  environment: local
+  host: 0.0.0.0
+  port: 8000
+  log_level: INFO
+  reload: true
+
+database:
+  host: localhost
+  port: 5432
+  name: constraint_scanner
+  user: constraint_scanner
+  echo: false
+  pool_size: 5
+
+polymarket:
+  rest_base_url: https://clob.polymarket.com
+  websocket_url: wss://ws-subscriptions-clob.polymarket.com/ws
+  funder_address: null
+  signature_type: 2
+
+ingestion:
+  enabled: false
+  poll_interval_seconds: 5
+  batch_size: 100
+  bootstrap_limit: 100
+  max_depth_levels: 10
+  archive_raw_messages: true
+  stale_after_seconds: 30
+
+grouping:
+  window_seconds: 60
+  max_group_size: 50
+
+detection:
+  enabled: false
+  confidence_threshold: 0.8
+  min_edge_bps: 0.0
+  max_legs: 8
+  enable_sell_side: false
+
+simulation:
+  enabled: false
+  starting_cash: 10000.0
+  slippage_bps: 5
+
+risk:
+  max_notional_usd: 1000.0
+  max_position_pct: 0.1
+  kill_switch: true
+
+trading:
+  enabled: false
+  paper: true
+  default_order_size_usd: 25.0
