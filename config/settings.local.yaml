@@ -45,11 +45,23 @@ simulation:
   enabled: false
   starting_cash: 10000.0
   slippage_bps: 5
+  per_extra_level_slippage_bps: 2
+  stale_quote_seconds: 15
+  stale_quote_fill_probability_factor: 0.6
+  leg_asymmetry_ratio_threshold: 0.2
+  leg_asymmetry_level_gap_threshold: 2
+  leg_asymmetry_fill_probability_factor: 0.85
+  robust_fill_probability_threshold: 0.95
 
 risk:
   max_notional_usd: 1000.0
   max_position_pct: 0.1
   kill_switch: true
+  min_edge_bps: 0.0
+  min_confidence_score: 0.8
+  max_legs: 8
+  max_unresolved_notional_usd: 1000.0
+  opportunity_stale_seconds: 30
 
 trading:
   enabled: false

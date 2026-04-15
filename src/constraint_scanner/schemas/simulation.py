@@ -14,10 +14,13 @@ class SimulationResponse(SchemaModel):
     """API response for a simulation run result."""
 
     candidate_id: str
+    simulation_run_id: str
     classification: SimulationClassification
     simulated_at: datetime
-    estimated_fill_rate: Decimal
+    fill_probability: Decimal
+    expected_pnl_usd: Decimal
+    downside_bound_usd: Decimal
     estimated_slippage_bps: Decimal
-    estimated_pnl_usd: Decimal
+    incident_flags: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
     details: dict[str, Any] = Field(default_factory=dict)

@@ -36,10 +36,9 @@ class OpportunityState(str, Enum):
 class SimulationClassification(str, Enum):
     """Result classification for execution simulation."""
 
-    PASS = "pass"
-    PARTIAL = "partial"
-    FAIL = "fail"
-    SKIP = "skip"
+    NON_EXECUTABLE = "non_executable"
+    FRAGILE = "fragile"
+    ROBUST = "robust"
 
 
 class TradingMode(str, Enum):

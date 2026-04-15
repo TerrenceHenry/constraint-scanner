@@ -80,11 +80,14 @@ class SimulationResult:
     """Deterministic record of a paper execution simulation."""
 
     candidate_id: str
+    simulation_run_id: str
     classification: SimulationClassification
     simulated_at: datetime
-    estimated_fill_rate: Decimal
+    fill_probability: Decimal
+    expected_pnl_usd: Decimal
+    downside_bound_usd: Decimal
     estimated_slippage_bps: Decimal
-    estimated_pnl_usd: Decimal
+    incident_flags: tuple[str, ...] = field(default_factory=tuple)
     notes: tuple[str, ...] = field(default_factory=tuple)
     details: dict[str, Any] = field(default_factory=dict)
 
@@ -96,11 +99,15 @@ class SimulationResult:
 class ExposureState:
     """Current paper or live exposure snapshot used for risk decisions."""
 
+    unresolved_notional_usd: Decimal
+    open_basket_count: int
     gross_exposure_usd: Decimal
     net_exposure_usd: Decimal
     open_order_count: int
     market_exposure_usd: dict[int, Decimal] = field(default_factory=dict)
+    group_exposure_usd: dict[int, Decimal] = field(default_factory=dict)
     token_exposure_usd: dict[int, Decimal] = field(default_factory=dict)
+    reporting_basis: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

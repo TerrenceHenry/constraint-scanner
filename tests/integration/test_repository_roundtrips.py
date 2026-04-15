@@ -222,3 +222,164 @@ def test_open_opportunity_uniqueness_is_enforced(session) -> None:
         session.rollback()
     else:
         raise AssertionError("expected the open-opportunity uniqueness constraint to reject duplicates")
+
+
+def test_summary_upsert_repairs_non_summary_row_and_latest_summary_can_see_it(session) -> None:
+    markets = MarketsRepository(session)
+    groups = GroupsRepository(session)
+    constraints = ConstraintsRepository(session)
+    opportunities = OpportunitiesRepository(session)
+    simulations = SimulationsRepository(session)
+
+    market = markets.create_market(
+        external_id="market-5",
+        slug="market-5",
+        question="Will simulation summary repair work?",
+    )
+    token = markets.create_token(
+        market_id=market.id,
+        external_id="token-sim-repair",
+        outcome_name="YES",
+        outcome_index=0,
+    )
+    group = groups.create_group(group_key="group-sim-repair", group_type="event")
+    constraint = constraints.create_constraint(
+        group_id=group.id,
+        name="sim-summary-repair",
+        constraint_type="binary_complement",
+        definition={"kind": "binary_complement"},
+    )
+    observed_at = datetime.now(timezone.utc)
+    opportunity = opportunities.create_opportunity(
+        group_id=group.id,
+        constraint_id=constraint.id,
+        market_id=market.id,
+        token_id=token.id,
+        persistence_key="opp-sim-repair",
+        detected_at=observed_at,
+        first_seen_at=observed_at,
+        last_seen_at=observed_at,
+        status="open",
+    )
+    repaired_run_id = "simrun-repair-1"
+
+    existing = simulations.create_execution(
+        opportunity_id=opportunity.id,
+        simulation_run_id=repaired_run_id,
+        summary_record=False,
+        market_id=market.id,
+        token_id=token.id,
+        executed_at=observed_at,
+        side="buy",
+        price=Decimal("0.40"),
+        quantity=Decimal("5"),
+        payload={"record_type": "legacy_leg"},
+    )
+    assert existing.summary_record is False
+
+    repaired = simulations.upsert_summary_execution(
+        opportunity_id=opportunity.id,
+        simulation_run_id=repaired_run_id,
+        defaults={
+            "executed_at": observed_at,
+            "side": None,
+            "price": None,
+            "quantity": None,
+            "market_id": None,
+            "token_id": None,
+            "fees_usd": None,
+            "pnl_impact_usd": Decimal("1.25"),
+            "payload": {"record_type": "simulation_summary", "classification": "fragile"},
+        },
+    )
+    session.commit()
+
+    latest = simulations.get_latest_summary_for_opportunity(opportunity.id)
+
+    assert repaired.id == existing.id
+    assert repaired.summary_record is True
+    assert latest is not None
+    assert latest.id == repaired.id
+    assert latest.payload["record_type"] == "simulation_summary"
+
+
+def test_summary_upsert_create_and_update_behavior_remains_stable(session) -> None:
+    markets = MarketsRepository(session)
+    groups = GroupsRepository(session)
+    constraints = ConstraintsRepository(session)
+    opportunities = OpportunitiesRepository(session)
+    simulations = SimulationsRepository(session)
+
+    market = markets.create_market(
+        external_id="market-6",
+        slug="market-6",
+        question="Will summary upsert stay stable?",
+    )
+    token = markets.create_token(
+        market_id=market.id,
+        external_id="token-sim-stable",
+        outcome_name="NO",
+        outcome_index=1,
+    )
+    group = groups.create_group(group_key="group-sim-stable", group_type="event")
+    constraint = constraints.create_constraint(
+        group_id=group.id,
+        name="sim-summary-stable",
+        constraint_type="binary_complement",
+        definition={"kind": "binary_complement"},
+    )
+    first_seen = datetime.now(timezone.utc)
+    opportunity = opportunities.create_opportunity(
+        group_id=group.id,
+        constraint_id=constraint.id,
+        market_id=market.id,
+        token_id=token.id,
+        persistence_key="opp-sim-stable",
+        detected_at=first_seen,
+        first_seen_at=first_seen,
+        last_seen_at=first_seen,
+        status="open",
+    )
+    run_id = "simrun-stable-1"
+
+    created = simulations.upsert_summary_execution(
+        opportunity_id=opportunity.id,
+        simulation_run_id=run_id,
+        defaults={
+            "executed_at": first_seen,
+            "side": None,
+            "price": None,
+            "quantity": None,
+            "market_id": None,
+            "token_id": None,
+            "fees_usd": None,
+            "pnl_impact_usd": Decimal("0.50"),
+            "payload": {"record_type": "simulation_summary", "classification": "robust"},
+        },
+    )
+
+    updated_at = datetime.now(timezone.utc)
+    updated = simulations.upsert_summary_execution(
+        opportunity_id=opportunity.id,
+        simulation_run_id=run_id,
+        defaults={
+            "executed_at": updated_at,
+            "side": None,
+            "price": None,
+            "quantity": None,
+            "market_id": None,
+            "token_id": None,
+            "fees_usd": None,
+            "pnl_impact_usd": Decimal("0.25"),
+            "payload": {"record_type": "simulation_summary", "classification": "fragile"},
+        },
+    )
+    session.commit()
+
+    summaries = simulations.list_summaries_for_opportunity(opportunity.id)
+
+    assert created.id == updated.id
+    assert updated.summary_record is True
+    assert len(summaries) == 1
+    assert summaries[0].payload["classification"] == "fragile"
+    assert summaries[0].pnl_impact_usd == Decimal("0.2500")

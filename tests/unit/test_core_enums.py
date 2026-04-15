@@ -27,6 +27,8 @@ def test_template_enum_values_are_stable() -> None:
 def test_status_and_mode_enums_are_stable() -> None:
     assert OpportunityState.DETECTED.value == "detected"
     assert OpportunityState.EXECUTED.value == "executed"
-    assert SimulationClassification.PASS.value == "pass"
+    assert SimulationClassification.NON_EXECUTABLE.value == "non_executable"
+    assert SimulationClassification.FRAGILE.value == "fragile"
+    assert SimulationClassification.ROBUST.value == "robust"
     assert TradingMode.PAPER.value == "paper"
     assert TradingMode.DISABLED.value == "disabled"

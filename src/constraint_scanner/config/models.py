@@ -76,12 +76,24 @@ class SimulationSettings(BaseSection):
     enabled: bool = False
     starting_cash: float = 10_000.0
     slippage_bps: int = 5
+    per_extra_level_slippage_bps: int = 2
+    stale_quote_seconds: int = 15
+    stale_quote_fill_probability_factor: float = 0.6
+    leg_asymmetry_ratio_threshold: float = 0.2
+    leg_asymmetry_level_gap_threshold: int = 2
+    leg_asymmetry_fill_probability_factor: float = 0.85
+    robust_fill_probability_threshold: float = 0.95
 
 
 class RiskSettings(BaseSection):
     max_notional_usd: float = 1_000.0
     max_position_pct: float = 0.1
     kill_switch: bool = True
+    min_edge_bps: float = 0.0
+    min_confidence_score: float = 0.8
+    max_legs: int = 8
+    max_unresolved_notional_usd: float = 1_000.0
+    opportunity_stale_seconds: int = 30
 
 
 class TradingSettings(BaseSection):

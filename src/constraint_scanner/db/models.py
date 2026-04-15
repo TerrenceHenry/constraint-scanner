@@ -281,18 +281,28 @@ class SimulatedExecution(TimestampMixin, Base):
     __table_args__ = (
         Index("ix_simulated_executions_executed_at", "executed_at"),
         Index("ix_simulated_executions_opportunity_id", "opportunity_id"),
+        Index("ix_simulated_executions_run_id", "simulation_run_id"),
+        Index(
+            "ix_simulated_executions_latest_summary",
+            "opportunity_id",
+            "summary_record",
+            "executed_at",
+        ),
+        UniqueConstraint("opportunity_id", "simulation_run_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     opportunity_id: Mapped[int] = mapped_column(
         ForeignKey("opportunities.id", ondelete="CASCADE"), nullable=False
     )
+    simulation_run_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    summary_record: Mapped[bool] = mapped_column(nullable=False, default=True)
     market_id: Mapped[int | None] = mapped_column(ForeignKey("markets.id", ondelete="SET NULL"))
     token_id: Mapped[int | None] = mapped_column(ForeignKey("tokens.id", ondelete="SET NULL"))
     executed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    side: Mapped[str] = mapped_column(String(8), nullable=False)
-    price: Mapped[Decimal] = mapped_column(PRICE_PRECISION, nullable=False)
-    quantity: Mapped[Decimal] = mapped_column(SIZE_PRECISION, nullable=False)
+    side: Mapped[str | None] = mapped_column(String(8))
+    price: Mapped[Decimal | None] = mapped_column(PRICE_PRECISION)
+    quantity: Mapped[Decimal | None] = mapped_column(SIZE_PRECISION)
     fees_usd: Mapped[Decimal | None] = mapped_column(USD_PRECISION)
     pnl_impact_usd: Mapped[Decimal | None] = mapped_column(USD_PRECISION)
     payload: Mapped[dict[str, Any] | None] = mapped_column(JSON_PAYLOAD)

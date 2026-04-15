@@ -71,15 +71,18 @@ def test_opportunity_and_simulation_schema_validate_enums() -> None:
     )
     simulation = SimulationResponse(
         candidate_id="opp-1",
-        classification=SimulationClassification.PASS,
+        simulation_run_id="simrun-1",
+        classification=SimulationClassification.ROBUST,
         simulated_at=now,
-        estimated_fill_rate="0.9",
+        fill_probability="0.9",
+        expected_pnl_usd="3.75",
+        downside_bound_usd="3.25",
         estimated_slippage_bps="2.5",
-        estimated_pnl_usd="3.75",
+        incident_flags=[],
     )
 
     assert opportunity.strategy_type is StrategyType.ARBITRAGE
-    assert simulation.classification is SimulationClassification.PASS
+    assert simulation.classification is SimulationClassification.ROBUST
 
 
 def test_trading_control_payload_rejects_unknown_mode() -> None:
