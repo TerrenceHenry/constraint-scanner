@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import sys
 from dataclasses import asdict
 
 from constraint_scanner.runtime import build_service_runtime
@@ -43,7 +44,11 @@ async def _run() -> None:
 
 
 def main() -> None:
-    asyncio.run(_run())
+    try:
+        asyncio.run(_run())
+    except KeyboardInterrupt:
+        print("Feed service stopped by operator.", file=sys.stderr)
+        raise SystemExit(130) from None
 
 
 if __name__ == "__main__":
