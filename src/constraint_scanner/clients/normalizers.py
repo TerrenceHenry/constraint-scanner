@@ -34,14 +34,31 @@ def _as_decimal(value: Any) -> Decimal | None:
     return Decimal(str(value))
 
 
+def _parse_unix_timestamp(value: Decimal) -> datetime:
+    absolute_value = abs(value)
+    seconds_value = value
+    if absolute_value >= Decimal("100000000000000000"):
+        seconds_value = value / Decimal("1000000000")
+    elif absolute_value >= Decimal("100000000000000"):
+        seconds_value = value / Decimal("1000000")
+    elif absolute_value >= Decimal("100000000000"):
+        seconds_value = value / Decimal("1000")
+    return datetime.fromtimestamp(float(seconds_value), tz=timezone.utc)
+
+
 def _parse_timestamp(value: Any) -> datetime:
     if value in (None, ""):
         return utc_now()
-    if isinstance(value, (int, float)):
-        return datetime.fromtimestamp(float(value), tz=timezone.utc)
-    text = str(value)
-    if text.isdigit():
-        return datetime.fromtimestamp(float(text), tz=timezone.utc)
+    if isinstance(value, (int, float, Decimal)):
+        return _parse_unix_timestamp(Decimal(str(value)))
+    text = str(value).strip()
+    if not text:
+        return utc_now()
+    if "T" not in text and ":" not in text:
+        try:
+            return _parse_unix_timestamp(Decimal(text))
+        except Exception:
+            pass
     if text.endswith("Z"):
         text = text[:-1] + "+00:00"
     return datetime.fromisoformat(text).astimezone(timezone.utc)

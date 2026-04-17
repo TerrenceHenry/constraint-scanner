@@ -85,3 +85,56 @@ def test_yaml_secret_values_are_ignored(tmp_path: Path) -> None:
     assert settings.polymarket.api_key is None
     assert settings.polymarket.api_secret is None
     assert settings.polymarket.api_passphrase is None
+
+
+def test_load_settings_reads_project_dotenv(monkeypatch, tmp_path: Path) -> None:
+    config_path = tmp_path / "settings.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "app:",
+                "  port: 8100",
+                "database:",
+                "  host: db.local",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    env_path = tmp_path / ".env"
+    env_path.write_text(
+        "\n".join(
+            [
+                "CONSTRAINT_SCANNER_APP_PORT=8300",
+                "CONSTRAINT_SCANNER_DATABASE_PASSWORD=from-dotenv",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("constraint_scanner.config.loader.DEFAULT_ENV_FILE_PATH", env_path)
+    monkeypatch.delenv("CONSTRAINT_SCANNER_APP_PORT", raising=False)
+    monkeypatch.delenv("CONSTRAINT_SCANNER_DATABASE_PASSWORD", raising=False)
+
+    settings = load_settings(config_path=config_path)
+
+    assert settings.app.port == 8300
+    assert settings.database.host == "db.local"
+    assert settings.database.password is not None
+    assert settings.database.password.get_secret_value() == "from-dotenv"
+
+
+def test_legacy_polymarket_websocket_url_is_normalized(tmp_path: Path) -> None:
+    config_path = tmp_path / "settings.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "polymarket:",
+                "  websocket_url: wss://ws-subscriptions-clob.polymarket.com/ws",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    settings = load_settings(config_path=config_path, environ={})
+
+    assert settings.polymarket.websocket_url == "wss://ws-subscriptions-clob.polymarket.com/ws/market"

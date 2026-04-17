@@ -5,11 +5,18 @@ from constraint_scanner.core.types import BookSnapshot
 from constraint_scanner.db.models import Token
 from constraint_scanner.db.repositories.markets import MarketsRepository
 
+POSTGRES_INTEGER_MIN = -(2**31)
+POSTGRES_INTEGER_MAX = (2**31) - 1
+
+
+def _is_internal_token_id_candidate(value: int) -> bool:
+    return POSTGRES_INTEGER_MIN <= value <= POSTGRES_INTEGER_MAX
+
 
 def resolve_token_reference(repository: MarketsRepository, token_reference: str | int) -> Token | None:
     """Resolve a token from either an internal ID or an external asset ID."""
 
-    if isinstance(token_reference, int):
+    if isinstance(token_reference, int) and _is_internal_token_id_candidate(token_reference):
         token = repository.get_token(token_reference)
         if token is not None:
             return token
@@ -20,7 +27,7 @@ def resolve_token_reference(repository: MarketsRepository, token_reference: str 
     except ValueError:
         internal_candidate = None
 
-    if internal_candidate is not None:
+    if internal_candidate is not None and _is_internal_token_id_candidate(internal_candidate):
         token = repository.get_token(internal_candidate)
         if token is not None:
             return token

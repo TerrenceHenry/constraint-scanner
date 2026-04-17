@@ -22,11 +22,19 @@ Current v1 boundaries:
 Copy-Item .env.example .env
 ```
 
+Local CLI scripts and the API auto-load `./.env`, so you do not need to export
+those variables into PowerShell separately for normal local runs.
+
 2. Start PostgreSQL.
 
 ```powershell
 docker compose up -d postgres
 ```
+
+If you change database credentials in `.env` after Postgres has already been
+initialized, also update the database role password or recreate the Postgres
+volume; the container does not re-apply `POSTGRES_PASSWORD` on a normal
+restart.
 
 3. Create a local Python environment and install the project.
 
@@ -134,6 +142,8 @@ Replay notes:
 - replay does not re-archive replayed raw messages by default
 - detector and simulator runs backfill the latest persisted books into the
   in-memory cache first
+- `--paper-route` forces runtime trading mode to `paper`, but still routes only
+  through the existing risk gate and shared kill switch state
 - JSONL replay records use a stable envelope with `source`, `channel`,
   `message_type`, `received_at`, `sequence_number`, and `payload`
 
@@ -169,6 +179,9 @@ Restrict to specific opportunities:
 uv run python scripts/run_simulator_once.py --opportunity-id 5 --opportunity-id 8
 ```
 
+The simulator script also backfills the canonical in-memory book cache from the
+database first, so it stays usable as a standalone operator command.
+
 ## Run API
 
 Start the operator API:
@@ -181,6 +194,12 @@ Or run uvicorn directly:
 
 ```powershell
 uvicorn constraint_scanner.main:app --reload
+```
+
+Or use the installed console entry point after `pip install -e .[dev]`:
+
+```powershell
+constraint-scanner
 ```
 
 The API, CLI scripts, and replay path now all build the same shared runtime:

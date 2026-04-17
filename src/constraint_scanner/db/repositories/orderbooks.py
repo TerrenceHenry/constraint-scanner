@@ -14,10 +14,24 @@ class OrderbooksRepository:
         self.session = session
 
     def create_top_snapshot(self, **values: object) -> OrderbookTop:
-        snapshot = OrderbookTop(**values)
-        self.session.add(snapshot)
+        token_id = values["token_id"]
+        observed_at = values["observed_at"]
+        snapshot = self.get_top_snapshot(token_id=token_id, observed_at=observed_at)
+        if snapshot is None:
+            snapshot = OrderbookTop(**values)
+            self.session.add(snapshot)
+        else:
+            for field_name, field_value in values.items():
+                setattr(snapshot, field_name, field_value)
         self.session.flush()
         return snapshot
+
+    def get_top_snapshot(self, *, token_id: int, observed_at: datetime) -> OrderbookTop | None:
+        stmt = select(OrderbookTop).where(
+            OrderbookTop.token_id == token_id,
+            OrderbookTop.observed_at == observed_at,
+        )
+        return self.session.scalar(stmt)
 
     def replace_depth_snapshot(
         self,

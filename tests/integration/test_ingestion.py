@@ -107,13 +107,14 @@ def test_market_bootstrap_upserts_markets_and_tokens(session: Session) -> None:
 
 
 def test_orderbook_snapshot_persists_top_and_depth_rows(session: Session) -> None:
+    external_asset_id = "8501497159083948713316135768103773293754490207922884688769443031624417212426"
     markets = MarketsRepository(session)
     orderbooks = OrderbooksRepository(session)
     market = markets.create_market(external_id="market-snap", slug="market-snap", question="Snapshot?")
     token = markets.create_token(
         market_id=market.id,
         external_id="101",
-        asset_id="101",
+        asset_id=external_asset_id,
         outcome_name="YES",
         outcome_index=0,
     )
@@ -122,14 +123,14 @@ def test_orderbook_snapshot_persists_top_and_depth_rows(session: Session) -> Non
     observed_at = datetime(2026, 4, 14, 12, 0, tzinfo=timezone.utc)
     book = PolymarketBook(
         snapshot=BookSnapshot(
-                token_id=101,
+                token_id=int(external_asset_id),
                 market_id=market.id,
                 observed_at=observed_at,
                 bids=(BookLevel(price=Decimal("0.44"), size=Decimal("10")), BookLevel(price=Decimal("0.43"), size=Decimal("9"))),
                 asks=(BookLevel(price=Decimal("0.46"), size=Decimal("12")), BookLevel(price=Decimal("0.47"), size=Decimal("8"))),
                 source="test",
             ),
-            raw_payload={"asset_id": "101"},
+            raw_payload={"asset_id": external_asset_id},
         )
     snapshotter = OrderbookSnapshotter(
         StubClobClient([book]),
@@ -148,6 +149,71 @@ def test_orderbook_snapshot_persists_top_and_depth_rows(session: Session) -> Non
     assert latest_top.best_bid_price == Decimal("0.44000000")
     assert latest_top.best_ask_price == Decimal("0.46000000")
     assert [(level.side, level.level) for level in depth] == [("ask", 1), ("bid", 1)]
+
+
+def test_orderbook_snapshot_is_idempotent_for_same_token_and_timestamp(session: Session) -> None:
+    external_asset_id = "8501497159083948713316135768103773293754490207922884688769443031624417212426"
+    markets = MarketsRepository(session)
+    orderbooks = OrderbooksRepository(session)
+    market = markets.create_market(external_id="market-repeat", slug="market-repeat", question="Repeat?")
+    token = markets.create_token(
+        market_id=market.id,
+        external_id="201",
+        asset_id=external_asset_id,
+        outcome_name="YES",
+        outcome_index=0,
+    )
+    session.commit()
+
+    observed_at = datetime(2026, 4, 17, 17, 57, 56, 255000, tzinfo=timezone.utc)
+    first_book = PolymarketBook(
+        snapshot=BookSnapshot(
+            token_id=int(external_asset_id),
+            market_id=market.id,
+            observed_at=observed_at,
+            bids=(BookLevel(price=Decimal("0.012"), size=Decimal("11355.01")),),
+            asks=(BookLevel(price=Decimal("0.013"), size=Decimal("1375.29")),),
+            source="test",
+        ),
+        raw_payload={"asset_id": external_asset_id, "snapshot": 1},
+    )
+    second_book = PolymarketBook(
+        snapshot=BookSnapshot(
+            token_id=int(external_asset_id),
+            market_id=market.id,
+            observed_at=observed_at,
+            bids=(BookLevel(price=Decimal("0.014"), size=Decimal("9000.00")),),
+            asks=(BookLevel(price=Decimal("0.015"), size=Decimal("1200.00")),),
+            source="test",
+        ),
+        raw_payload={"asset_id": external_asset_id, "snapshot": 2},
+    )
+    snapshotter = OrderbookSnapshotter(
+        StubClobClient([first_book]),
+        _session_factory_from_session(session),
+        max_depth_levels=1,
+    )
+    replay_snapshotter = OrderbookSnapshotter(
+        StubClobClient([second_book]),
+        _session_factory_from_session(session),
+        max_depth_levels=1,
+    )
+
+    first_result = asyncio.run(snapshotter.fetch_and_persist([token.id]))
+    second_result = asyncio.run(replay_snapshotter.fetch_and_persist([token.id]))
+
+    persisted_top = orderbooks.get_top_snapshot(token_id=token.id, observed_at=observed_at)
+    depth = orderbooks.list_depth(token.id, observed_at)
+
+    assert first_result.snapshot_count == 1
+    assert second_result.snapshot_count == 1
+    assert persisted_top is not None
+    assert persisted_top.best_bid_price == Decimal("0.01400000")
+    assert persisted_top.best_ask_price == Decimal("0.01500000")
+    assert persisted_top.payload == {"asset_id": external_asset_id, "snapshot": 2}
+    assert len(depth) == 2
+    assert depth[0].price == Decimal("0.01500000")
+    assert depth[1].price == Decimal("0.01400000")
 
 
 def test_ws_consumer_updates_cache_and_archives_raw_messages(session: Session) -> None:

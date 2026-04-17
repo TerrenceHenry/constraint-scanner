@@ -115,20 +115,20 @@ def test_clob_client_get_books_normalizes_batch_response() -> None:
         assert request.url.path == "/books"
         return httpx.Response(
             200,
-            json={
-                "books": [
-                    {
-                        "asset_id": "111",
-                        "bids": [{"price": "0.10", "size": "10"}],
-                        "asks": [{"price": "0.12", "size": "8"}],
-                    },
-                    {
-                        "asset_id": "222",
-                        "bids": [{"price": "0.20", "size": "12"}],
-                        "asks": [{"price": "0.25", "size": "7"}],
-                    },
-                ]
-            },
+            json=[
+                {
+                    "asset_id": "111",
+                    "bids": [{"price": "0.10", "size": "10"}],
+                    "asks": [{"price": "0.12", "size": "8"}],
+                    "timestamp": "1776448585266",
+                },
+                {
+                    "asset_id": "222",
+                    "bids": [{"price": "0.20", "size": "12"}],
+                    "asks": [{"price": "0.25", "size": "7"}],
+                    "timestamp": "2026-04-16T12:00:00Z",
+                },
+            ],
         )
 
     async def run_test() -> None:
@@ -140,6 +140,7 @@ def test_clob_client_get_books_normalizes_batch_response() -> None:
 
         assert [book.snapshot.token_id for book in books] == [111, 222]
         assert books[1].snapshot.asks[0].price == Decimal("0.25")
+        assert books[0].snapshot.observed_at == datetime(2026, 4, 17, 17, 56, 25, 266000, tzinfo=timezone.utc)
 
     asyncio.run(run_test())
 

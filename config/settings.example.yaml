@@ -17,7 +17,7 @@ database:
 
 polymarket:
   rest_base_url: https://clob.polymarket.com
-  websocket_url: wss://ws-subscriptions-clob.polymarket.com/ws
+  websocket_url: wss://ws-subscriptions-clob.polymarket.com/ws/market
   funder_address: null
   signature_type: 2
 

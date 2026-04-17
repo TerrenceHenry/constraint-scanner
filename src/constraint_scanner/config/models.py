@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field, SecretStr
+from pydantic import BaseModel, ConfigDict, Field, SecretStr, field_validator
 
-from constraint_scanner.core.constants import DEFAULT_TIME_IN_FORCE
+from constraint_scanner.core.constants import DEFAULT_TIME_IN_FORCE, POLYMARKET_MARKET_WS_URL
 from constraint_scanner.core.enums import TradingMode
 
 
@@ -50,6 +50,17 @@ class PolymarketSettings(BaseSection):
     api_key: SecretStr | None = None
     api_secret: SecretStr | None = None
     api_passphrase: SecretStr | None = None
+
+    @field_validator("websocket_url", mode="before")
+    @classmethod
+    def normalize_legacy_market_websocket_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return value
+
+        text = str(value).strip()
+        if text.rstrip("/") == "wss://ws-subscriptions-clob.polymarket.com/ws":
+            return POLYMARKET_MARKET_WS_URL
+        return text
 
 
 class IngestionSettings(BaseSection):
