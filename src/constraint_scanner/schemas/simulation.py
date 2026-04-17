@@ -24,3 +24,30 @@ class SimulationResponse(SchemaModel):
     incident_flags: list[str] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)
     details: dict[str, Any] = Field(default_factory=dict)
+
+
+class LatestSimulationResponse(SchemaModel):
+    """Authoritative latest simulation summary for one opportunity."""
+
+    id: int
+    opportunity_id: int
+    simulation_run_id: str
+    summary_record: bool
+    executed_at: datetime
+    classification: SimulationClassification
+    fill_probability: Decimal | None = None
+    expected_pnl_usd: Decimal | None = None
+    downside_bound_usd: Decimal | None = None
+    estimated_slippage_bps: Decimal | None = None
+    incident_flags: list[str] = Field(default_factory=list)
+    notes: list[str] = Field(default_factory=list)
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class SimulationPageResponse(SchemaModel):
+    """Paginated latest authoritative simulation listing."""
+
+    items: list[LatestSimulationResponse]
+    total: int
+    limit: int
+    offset: int

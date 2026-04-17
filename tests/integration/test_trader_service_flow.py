@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import select
 from sqlalchemy.orm import Session, sessionmaker
 
+from constraint_scanner.control_runtime import RuntimeControlState
 from constraint_scanner.config.models import TradingSettings
 from constraint_scanner.core.enums import TradingMode
 from constraint_scanner.core.types import RiskDecision
@@ -15,11 +16,24 @@ from constraint_scanner.db.repositories.markets import MarketsRepository
 from constraint_scanner.db.repositories.opportunities import OpportunitiesRepository
 from constraint_scanner.db.repositories.simulations import SimulationsRepository
 from constraint_scanner.risk.kill_switch import KillSwitch
+from constraint_scanner.trading.mode_state import TradingModeState
 from constraint_scanner.trading.trader_service import TraderService
 
 
 def _session_factory_from_session(session: Session) -> sessionmaker:
     return sessionmaker(bind=session.bind, autoflush=False, expire_on_commit=False, class_=Session)
+
+
+def _runtime_controls(
+    *,
+    mode: TradingMode,
+    kill_switch_active: bool = False,
+    kill_switch_reason: str | None = None,
+) -> RuntimeControlState:
+    return RuntimeControlState(
+        kill_switch=KillSwitch(active=kill_switch_active, reason=kill_switch_reason),
+        trading_mode_state=TradingModeState(mode=mode, reason="test_default"),
+    )
 
 
 def _approved_decision(max_size_usd: str = "10") -> RiskDecision:
@@ -169,7 +183,7 @@ def test_trader_service_disabled_mode_rejects(session: Session) -> None:
     service = TraderService(
         _session_factory_from_session(session),
         trading_settings=TradingSettings(enabled=False, mode=TradingMode.DISABLED),
-        kill_switch=KillSwitch(active=False),
+        runtime_controls=_runtime_controls(mode=TradingMode.DISABLED),
     )
 
     result = service.execute_opportunity(
@@ -196,7 +210,7 @@ def test_trader_service_paper_mode_creates_synthetic_order_records(session: Sess
     service = TraderService(
         _session_factory_from_session(session),
         trading_settings=TradingSettings(enabled=True, mode=TradingMode.PAPER, default_tif="IOC"),
-        kill_switch=KillSwitch(active=False),
+        runtime_controls=_runtime_controls(mode=TradingMode.PAPER),
     )
 
     result = service.execute_opportunity(
@@ -235,7 +249,7 @@ def test_trader_service_non_approved_opportunities_do_not_route(session: Session
     service = TraderService(
         _session_factory_from_session(session),
         trading_settings=TradingSettings(enabled=True, mode=TradingMode.PAPER),
-        kill_switch=KillSwitch(active=False),
+        runtime_controls=_runtime_controls(mode=TradingMode.PAPER),
     )
 
     result = service.execute_opportunity(
@@ -262,7 +276,7 @@ def test_trader_service_rejects_missing_approved_notional(session: Session) -> N
     service = TraderService(
         _session_factory_from_session(session),
         trading_settings=TradingSettings(enabled=True, mode=TradingMode.PAPER),
-        kill_switch=KillSwitch(active=False),
+        runtime_controls=_runtime_controls(mode=TradingMode.PAPER),
     )
     decision = RiskDecision(
         approved=True,
@@ -295,7 +309,7 @@ def test_trader_service_rejects_zero_approved_notional(session: Session) -> None
     service = TraderService(
         _session_factory_from_session(session),
         trading_settings=TradingSettings(enabled=True, mode=TradingMode.PAPER),
-        kill_switch=KillSwitch(active=False),
+        runtime_controls=_runtime_controls(mode=TradingMode.PAPER),
     )
     decision = RiskDecision(
         approved=True,
@@ -328,7 +342,7 @@ def test_trader_service_rejects_fabricated_simulation_run_id(session: Session) -
     service = TraderService(
         _session_factory_from_session(session),
         trading_settings=TradingSettings(enabled=True, mode=TradingMode.PAPER),
-        kill_switch=KillSwitch(active=False),
+        runtime_controls=_runtime_controls(mode=TradingMode.PAPER),
     )
     decision = RiskDecision(
         approved=True,
@@ -367,7 +381,7 @@ def test_trader_service_rejects_stale_simulation_run_id(session: Session) -> Non
     service = TraderService(
         _session_factory_from_session(session),
         trading_settings=TradingSettings(enabled=True, mode=TradingMode.PAPER),
-        kill_switch=KillSwitch(active=False),
+        runtime_controls=_runtime_controls(mode=TradingMode.PAPER),
     )
     decision = RiskDecision(
         approved=True,
@@ -402,7 +416,7 @@ def test_trader_service_rejects_simulation_run_id_for_different_opportunity(sess
     service = TraderService(
         _session_factory_from_session(session),
         trading_settings=TradingSettings(enabled=True, mode=TradingMode.PAPER),
-        kill_switch=KillSwitch(active=False),
+        runtime_controls=_runtime_controls(mode=TradingMode.PAPER),
     )
     decision = RiskDecision(
         approved=True,

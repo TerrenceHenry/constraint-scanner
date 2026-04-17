@@ -1,0 +1,2 @@
+{"source":"polymarket","channel":"market","message_type":"book","sequence_number":1,"received_at":"2026-04-15T19:00:00+00:00","payload":{"event_type":"book","asset_id":"900001","timestamp":"2026-04-15T19:00:00Z","bids":[],"asks":[{"price":"0.48","size":"10"}]}}
+{"source":"polymarket","channel":"market","message_type":"book","sequence_number":2,"received_at":"2026-04-15T19:00:00+00:00","payload":{"event_type":"book","asset_id":"900002","timestamp":"2026-04-15T19:00:00Z","bids":[],"asks":[{"price":"0.47","size":"10"}]}}

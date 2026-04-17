@@ -112,7 +112,8 @@ def test_orderbook_snapshot_persists_top_and_depth_rows(session: Session) -> Non
     market = markets.create_market(external_id="market-snap", slug="market-snap", question="Snapshot?")
     token = markets.create_token(
         market_id=market.id,
-        external_id="token-snap",
+        external_id="101",
+        asset_id="101",
         outcome_name="YES",
         outcome_index=0,
     )
@@ -121,15 +122,15 @@ def test_orderbook_snapshot_persists_top_and_depth_rows(session: Session) -> Non
     observed_at = datetime(2026, 4, 14, 12, 0, tzinfo=timezone.utc)
     book = PolymarketBook(
         snapshot=BookSnapshot(
-            token_id=token.id,
-            market_id=market.id,
-            observed_at=observed_at,
-            bids=(BookLevel(price=Decimal("0.44"), size=Decimal("10")), BookLevel(price=Decimal("0.43"), size=Decimal("9"))),
-            asks=(BookLevel(price=Decimal("0.46"), size=Decimal("12")), BookLevel(price=Decimal("0.47"), size=Decimal("8"))),
-            source="test",
-        ),
-        raw_payload={"asset_id": str(token.id)},
-    )
+                token_id=101,
+                market_id=market.id,
+                observed_at=observed_at,
+                bids=(BookLevel(price=Decimal("0.44"), size=Decimal("10")), BookLevel(price=Decimal("0.43"), size=Decimal("9"))),
+                asks=(BookLevel(price=Decimal("0.46"), size=Decimal("12")), BookLevel(price=Decimal("0.47"), size=Decimal("8"))),
+                source="test",
+            ),
+            raw_payload={"asset_id": "101"},
+        )
     snapshotter = OrderbookSnapshotter(
         StubClobClient([book]),
         _session_factory_from_session(session),

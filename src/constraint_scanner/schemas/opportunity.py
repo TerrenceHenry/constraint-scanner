@@ -7,7 +7,8 @@ from typing import Any
 from pydantic import Field
 
 from constraint_scanner.core.enums import OpportunityState, StrategyType, TemplateType
-from constraint_scanner.schemas.common import SchemaModel
+from constraint_scanner.schemas.common import SchemaModel, TimestampedResponse
+from constraint_scanner.schemas.simulation import LatestSimulationResponse
 
 
 class OpportunityLegResponse(SchemaModel):
@@ -33,3 +34,41 @@ class OpportunityResponse(SchemaModel):
     expected_value_usd: Decimal
     legs: list[OpportunityLegResponse]
     metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpportunityListItemResponse(TimestampedResponse):
+    """Authoritative operator-facing opportunity summary."""
+
+    id: int
+    group_id: int | None = None
+    constraint_id: int | None = None
+    market_id: int | None = None
+    token_id: int | None = None
+    scope_key: str
+    persistence_key: str
+    status: str
+    detected_at: datetime
+    first_seen_at: datetime
+    last_seen_at: datetime
+    closed_at: datetime | None = None
+    score: Decimal | None = None
+    edge_bps: Decimal | None = None
+    expected_value_usd: Decimal | None = None
+    template_type: str | None = None
+    confidence_score: Decimal | None = None
+    latest_simulation: LatestSimulationResponse | None = None
+
+
+class OpportunityDetailResponse(OpportunityListItemResponse):
+    """Operator-facing opportunity detail view."""
+
+    details: dict[str, Any] = Field(default_factory=dict)
+
+
+class OpportunityPageResponse(SchemaModel):
+    """Paginated opportunity listing."""
+
+    items: list[OpportunityListItemResponse]
+    total: int
+    limit: int
+    offset: int

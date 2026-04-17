@@ -38,3 +38,12 @@ class MarketsListResponse(SchemaModel):
     """Collection response for markets."""
 
     items: list[MarketResponse]
+
+
+class MarketPageResponse(SchemaModel):
+    """Paginated authoritative market listing."""
+
+    items: list[MarketResponse]
+    total: int
+    limit: int
+    offset: int

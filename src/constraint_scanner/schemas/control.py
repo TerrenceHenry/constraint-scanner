@@ -6,6 +6,7 @@ from pydantic import Field
 
 from constraint_scanner.core.enums import TradingMode
 from constraint_scanner.schemas.common import SchemaModel
+from constraint_scanner.schemas.health import KillSwitchStateResponse, TradingModeStateResponse
 
 
 class IngestionControlPayload(SchemaModel):
@@ -31,6 +32,13 @@ class TradingControlPayload(SchemaModel):
     confirm_live: bool = False
 
 
+class KillSwitchControlPayload(SchemaModel):
+    """Payload for explicitly setting the kill switch state."""
+
+    active: bool
+    reason: str | None = None
+
+
 class ReplayControlPayload(SchemaModel):
     """Payload for deterministic replay controls."""
 
@@ -38,3 +46,14 @@ class ReplayControlPayload(SchemaModel):
     start_at: datetime | None = None
     end_at: datetime | None = None
     speed_multiplier: float = 1.0
+
+
+__all__ = [
+    "DetectionControlPayload",
+    "IngestionControlPayload",
+    "KillSwitchControlPayload",
+    "KillSwitchStateResponse",
+    "ReplayControlPayload",
+    "TradingControlPayload",
+    "TradingModeStateResponse",
+]

@@ -67,6 +67,7 @@ class MarketBootstrap:
                         external_id=token_external_id,
                         defaults={
                             "market_id": db_market.id,
+                            "asset_id": token_external_id,
                             "symbol": outcome_name.upper(),
                             "outcome_name": outcome_name,
                             "outcome_index": token_index,

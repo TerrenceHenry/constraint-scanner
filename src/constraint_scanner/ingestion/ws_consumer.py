@@ -8,9 +8,11 @@ from sqlalchemy.orm import sessionmaker
 
 from constraint_scanner.clients.models import MarketStreamEvent, PolymarketBook
 from constraint_scanner.clients.ws_market_client import WsMarketClient
+from constraint_scanner.db.repositories.markets import MarketsRepository
 from constraint_scanner.db.repositories.orderbooks import OrderbooksRepository
 from constraint_scanner.ingestion.feed_state import FeedState
 from constraint_scanner.ingestion.raw_archive import RawArchive
+from constraint_scanner.ingestion.token_resolution import resolve_event_to_internal_token
 
 
 class LatestBookCache:
@@ -77,39 +79,39 @@ class WsConsumer:
         processed_events = 0
 
         async for event in self._ws_client.listen():
-            self._handle_event(event)
+            self.handle_event(event)
             processed_events += 1
             if event_limit is not None and processed_events >= event_limit:
                 break
 
         return WsConsumerResult(processed_events=processed_events)
 
-    def _handle_event(self, event: MarketStreamEvent) -> None:
-        if self._raw_archive is not None:
-            token_id = None
-            if event.asset_id is not None:
-                try:
-                    token_id = int(str(event.asset_id), 0)
-                except ValueError:
-                    token_id = None
-            self._raw_archive.archive(
-                source="polymarket",
-                channel="market",
-                message_type=event.event_type,
-                received_at=event.received_at,
-                payload=event.raw_payload,
-                token_id=token_id,
-            )
-
-        if event.book is None:
-            return
-
-        self._latest_book_cache.update(event.book)
-        self._feed_state.mark_seen(event.book.snapshot.token_id, event.book.snapshot.observed_at)
+    def handle_event(self, event: MarketStreamEvent, *, archive: bool = True) -> None:
+        """Consume one normalized event into the canonical live state."""
 
         with self._session_factory() as session:
+            markets = MarketsRepository(session)
+            resolved_event, resolved_token_id = resolve_event_to_internal_token(markets, event)
+
+            if archive and self._raw_archive is not None:
+                self._raw_archive.archive(
+                    source="polymarket",
+                    channel="market",
+                    message_type=event.event_type,
+                    received_at=event.received_at,
+                    payload=event.raw_payload,
+                    token_id=resolved_token_id,
+                )
+
+            if resolved_event.book is None:
+                session.commit()
+                return
+
+            self._latest_book_cache.update(resolved_event.book)
+            self._feed_state.mark_seen(resolved_event.book.snapshot.token_id, resolved_event.book.snapshot.observed_at)
+
             repository = OrderbooksRepository(session)
-            self._persist_book(repository, event.book)
+            self._persist_book(repository, resolved_event.book)
             session.commit()
 
     def _persist_book(self, repository: OrderbooksRepository, book: PolymarketBook) -> None:

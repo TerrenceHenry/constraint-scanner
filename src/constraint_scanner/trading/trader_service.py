@@ -7,6 +7,7 @@ from typing import Any
 import structlog
 from sqlalchemy.orm import sessionmaker
 
+from constraint_scanner.control_runtime import RuntimeControlState
 from constraint_scanner.config.loader import get_settings
 from constraint_scanner.config.models import TradingSettings
 from constraint_scanner.core.clock import ensure_utc, utc_now
@@ -15,7 +16,6 @@ from constraint_scanner.core.exceptions import TradingModeDisabledError, Trading
 from constraint_scanner.core.types import RiskDecision
 from constraint_scanner.db.models import Opportunity
 from constraint_scanner.db.repositories.simulations import SimulationsRepository
-from constraint_scanner.risk.kill_switch import KillSwitch
 from constraint_scanner.trading.order_builder import build_order_requests
 from constraint_scanner.trading.order_router import OrderRouter
 
@@ -44,7 +44,7 @@ class TraderService:
         *,
         trading_settings: TradingSettings | None = None,
         order_router: OrderRouter | None = None,
-        kill_switch: KillSwitch | None = None,
+        runtime_controls: RuntimeControlState,
         logger: Any | None = None,
     ) -> None:
         settings = get_settings()
@@ -52,7 +52,7 @@ class TraderService:
         self._trading_settings = trading_settings or settings.trading
         self._logger = logger or structlog.get_logger(__name__)
         self._order_router = order_router or OrderRouter(logger=self._logger)
-        self._kill_switch = kill_switch or KillSwitch(active=settings.risk.kill_switch, reason="config_default")
+        self._runtime_controls = runtime_controls
 
     def execute_opportunity(
         self,
@@ -64,16 +64,22 @@ class TraderService:
     ) -> TraderServiceResult:
         """Execute a single approved opportunity into the configured trading mode."""
 
-        configured_mode = self._trading_settings.resolved_mode()
+        trading_mode_snapshot = self._runtime_controls.trading_mode_state.snapshot()
+        configured_mode = trading_mode_snapshot.mode
         active_mode = trading_mode or configured_mode
         active_submitted_at = ensure_utc(submitted_at or utc_now())
-        kill_switch_snapshot = self._kill_switch.snapshot()
+        kill_switch_snapshot = self._runtime_controls.kill_switch.snapshot()
         simulation_run_id = risk_decision.metadata.get("simulation_run_id")
         base_metadata = {
             "opportunity_id": opportunity.id,
             "trading_mode": active_mode.value,
             "submitted_at": active_submitted_at.isoformat(),
             "simulation_run_id": simulation_run_id,
+            "runtime_trading_mode": {
+                "mode": trading_mode_snapshot.mode.value,
+                "reason": trading_mode_snapshot.reason,
+                "updated_at": trading_mode_snapshot.updated_at,
+            },
             "kill_switch": {
                 "active": kill_switch_snapshot.active,
                 "reason": kill_switch_snapshot.reason,

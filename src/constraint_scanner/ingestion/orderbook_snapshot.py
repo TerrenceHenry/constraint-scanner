@@ -7,7 +7,9 @@ from sqlalchemy.orm import sessionmaker
 
 from constraint_scanner.clients.clob_client import ClobClient
 from constraint_scanner.clients.models import PolymarketBook
+from constraint_scanner.db.repositories.markets import MarketsRepository
 from constraint_scanner.db.repositories.orderbooks import OrderbooksRepository
+from constraint_scanner.ingestion.token_resolution import resolve_book_to_internal_token
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,17 +32,33 @@ class OrderbookSnapshotter:
     async def fetch_and_persist(self, token_ids: list[str | int]) -> OrderbookSnapshotResult:
         """Fetch initial books and persist best-book plus depth rows."""
 
-        books = await self._clob_client.get_books([str(token_id) for token_id in sorted(token_ids, key=str)])
+        requested_token_ids = sorted({int(str(token_id), 0) for token_id in token_ids})
+        with self._session_factory() as session:
+            markets = MarketsRepository(session)
+            external_token_ids = []
+            for token_id in requested_token_ids:
+                token = markets.get_token(token_id)
+                if token is None:
+                    continue
+                external_token_ids.append(token.asset_id or token.external_id)
+
+        books = await self._clob_client.get_books(external_token_ids)
+        resolved_books: list[PolymarketBook] = []
         with self._session_factory() as session:
             repository = OrderbooksRepository(session)
+            markets = MarketsRepository(session)
             for book in books:
-                self._persist_book(repository, book)
+                resolved_book = resolve_book_to_internal_token(markets, book)
+                if resolved_book is None:
+                    continue
+                self._persist_book(repository, resolved_book)
+                resolved_books.append(resolved_book)
             session.commit()
 
         return OrderbookSnapshotResult(
-            snapshot_count=len(books),
-            token_ids=tuple(book.snapshot.token_id for book in books),
-            books=tuple(books),
+            snapshot_count=len(resolved_books),
+            token_ids=tuple(book.snapshot.token_id for book in resolved_books),
+            books=tuple(sorted(resolved_books, key=lambda book: book.snapshot.token_id)),
         )
 
     def _persist_book(self, repository: OrderbooksRepository, book: PolymarketBook) -> None:

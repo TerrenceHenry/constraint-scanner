@@ -10,6 +10,9 @@ from constraint_scanner.risk.exposure import build_exposure_state
 from constraint_scanner.risk.kill_switch import KillSwitch
 from constraint_scanner.risk.policy import RiskPolicy, RiskPolicySettings
 
+BASE_TIME = datetime(2026, 4, 15, 14, 0, tzinfo=timezone.utc)
+FRESH_EVALUATED_AT = BASE_TIME + timedelta(seconds=15)
+
 
 def _opportunity(
     *,
@@ -22,7 +25,7 @@ def _opportunity(
     last_seen_at: datetime | None = None,
     status: str = "open",
 ) -> Opportunity:
-    detected_at = datetime(2026, 4, 15, 14, 0, tzinfo=timezone.utc)
+    detected_at = BASE_TIME
     active_last_seen_at = last_seen_at or detected_at
     pricing_legs = [
         {
@@ -69,7 +72,7 @@ def _simulation(
         opportunity_id=opportunity_id,
         simulation_run_id=run_id,
         summary_record=True,
-        executed_at=datetime(2026, 4, 15, 14, 0, tzinfo=timezone.utc),
+        executed_at=BASE_TIME,
         side=None,
         price=None,
         quantity=None,
@@ -110,6 +113,7 @@ def test_risk_policy_rejects_trading_disabled() -> None:
         simulation=_simulation(),
         current_exposure=_exposure(),
         trading_mode=TradingMode.DISABLED,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.approved is False
@@ -127,6 +131,7 @@ def test_risk_policy_rejects_edge_below_minimum() -> None:
         simulation=_simulation(),
         current_exposure=_exposure(),
         trading_mode=TradingMode.PAPER,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.reason_code == "edge_below_minimum"
@@ -143,6 +148,7 @@ def test_risk_policy_rejects_confidence_below_minimum() -> None:
         simulation=_simulation(),
         current_exposure=_exposure(),
         trading_mode=TradingMode.PAPER,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.reason_code == "confidence_below_minimum"
@@ -156,6 +162,7 @@ def test_risk_policy_rejects_simulation_not_robust() -> None:
         simulation=_simulation(classification=SimulationClassification.FRAGILE),
         current_exposure=_exposure(),
         trading_mode=TradingMode.PAPER,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.reason_code == "simulation_not_robust"
@@ -166,7 +173,7 @@ def test_risk_policy_rejects_opportunity_stale() -> None:
         settings=RiskPolicySettings(opportunity_stale_seconds=30),
         kill_switch=KillSwitch(active=False),
     )
-    evaluated_at = datetime(2026, 4, 15, 14, 2, tzinfo=timezone.utc)
+    evaluated_at = BASE_TIME + timedelta(minutes=2)
 
     decision = policy.evaluate(
         opportunity=_opportunity(last_seen_at=evaluated_at - timedelta(seconds=45)),
@@ -190,6 +197,7 @@ def test_risk_policy_rejects_max_legs_exceeded() -> None:
         simulation=_simulation(),
         current_exposure=_exposure(),
         trading_mode=TradingMode.PAPER,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.reason_code == "max_legs_exceeded"
@@ -206,6 +214,7 @@ def test_risk_policy_rejects_unresolved_exposure_too_high() -> None:
         simulation=_simulation(),
         current_exposure=_exposure(unresolved="900"),
         trading_mode=TradingMode.PAPER,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.reason_code == "unresolved_exposure_too_high"
@@ -219,6 +228,7 @@ def test_risk_policy_rejects_kill_switch_override() -> None:
         simulation=_simulation(),
         current_exposure=_exposure(),
         trading_mode=TradingMode.PAPER,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.reason_code == "kill_switch_active"
@@ -232,6 +242,7 @@ def test_risk_policy_rejects_stale_quote_flag_conservatively() -> None:
         simulation=_simulation(incident_flags=("stale_quote",)),
         current_exposure=_exposure(),
         trading_mode=TradingMode.PAPER,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.reason_code == "simulation_stale_quote"
@@ -248,6 +259,7 @@ def test_risk_policy_rejects_timing_mismatch_flag_conservatively() -> None:
         ),
         current_exposure=_exposure(),
         trading_mode=TradingMode.PAPER,
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.reason_code == "simulation_timing_mismatch"
@@ -270,7 +282,7 @@ def test_risk_policy_approves_robust_case() -> None:
         simulation=_simulation(),
         current_exposure=_exposure(unresolved="200"),
         trading_mode=TradingMode.PAPER,
-        evaluated_at=datetime(2026, 4, 15, 14, 0, 15, tzinfo=timezone.utc),
+        evaluated_at=FRESH_EVALUATED_AT,
     )
 
     assert decision.approved is True

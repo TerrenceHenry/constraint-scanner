@@ -44,8 +44,15 @@ class MarketsRepository:
         self.session.flush()
         return token
 
+    def get_token(self, token_id: int) -> Token | None:
+        return self.session.get(Token, token_id)
+
     def get_token_by_external_id(self, external_id: str) -> Token | None:
         stmt = select(Token).where(Token.external_id == external_id)
+        return self.session.scalar(stmt)
+
+    def get_token_by_asset_id(self, asset_id: str) -> Token | None:
+        stmt = select(Token).where(Token.asset_id == asset_id)
         return self.session.scalar(stmt)
 
     def upsert_token(self, *, external_id: str, defaults: dict[str, object]) -> Token:
